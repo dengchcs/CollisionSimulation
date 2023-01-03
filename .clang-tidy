@@ -1,0 +1,15 @@
+---
+Checks: '
+    clang-analyzer-*,
+    clang-diagnostic-*,
+    bugprone-*,
+    performance-*,
+    modernize-*,
+    readability-*,
+    portability-*
+    -*-magic-numbers,
+    -*-isolate-declaration,
+    -*-bool-conversion,
+    -*swappable-parameters,
+    -*-identifier-length,
+    '
