@@ -7,27 +7,32 @@
 #include "camera.hpp"
 #include "glad/glad.h"
 
-
 class simulator {
     camera camera_{};
 
     GLFWwindow *window_ = nullptr;
 
-    GLuint shader_sphere_ = 0;
+    GLuint shader_ = 0;
+
     GLuint vao_sphere_ = 0;
     GLuint vbo_sphere_ = 0;
     GLuint ebo_sphere_ = 0;
 
+    GLuint vao_walls_ = 0;
+    GLuint vbo_walls_ = 0;
+
     size_t sphere_indice_cnt_ = 0;
 
     void init_window();
-    void init_shaders();
+    void init_shader();
 
     void init_sphere();
     void draw_spheres();
-    void draw_triangle();
 
-    void upd_camera(GLuint shader);
+    void init_walls();
+    void draw_walls();
+
+    void upd_scene(GLuint shader);
 
     void process_input();
 

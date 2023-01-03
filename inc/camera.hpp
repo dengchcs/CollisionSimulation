@@ -22,6 +22,8 @@ public:
 
           };
 
+    [[nodiscard]] auto eye_position() const { return eye_; }
+
     [[nodiscard]] auto view_matrix() const -> gmat4_t { return glm::lookAt(eye_, center_, up_); }
 
     void translate_up(float dist) {

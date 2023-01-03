@@ -1,8 +1,7 @@
 ﻿#include "simulator.hpp"
 
-#include <stddef.h>
-
 #include <array>
+#include <cstddef>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -13,10 +12,12 @@
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_transform.hpp"
 
+
 simulator::simulator() {
     init_window();
-    init_shaders();
+    init_shader();
     init_sphere();
+    init_walls();
 }
 
 void simulator::init_window() {
@@ -35,7 +36,7 @@ void simulator::init_window() {
     std::cerr << "init_window(): " << glGetError() << '\n';
 }
 
-void simulator::init_shaders() {
+void simulator::init_shader() {
     auto check_shader = [&](GLuint shader, const char* msg) {
         GLint success;
         char log[512];
@@ -85,7 +86,7 @@ void simulator::init_shaders() {
     };
 
     // @todo: 改为可配置模式
-    shader_sphere_ = load_shader("./shaders/sphere.vert", "./shaders/phong.frag");
+    shader_ = load_shader("./shaders/phong.vert", "./shaders/phong.frag");
 
     std::cerr << "init_shaders(): " << glGetError() << '\n';
 }
@@ -164,26 +165,79 @@ void simulator::init_sphere() {
     std::cerr << "init_sphere(): " << glGetError() << '\n';
 }
 
+void simulator::init_walls() {
+    // clang-format off
+    float walls[] = {
+        // 左侧面
+        -1, -1, -1, 1, 0, 0,
+        -1, -1, +1, 1, 0, 0,
+        -1, +1, -1, 1, 0, 0,
+        -1, +1, +1, 1, 0, 0,
+        -1, -1, +1, 1, 0, 0,
+        -1, +1, -1, 1, 0, 0,
+        // 后面
+        -1, -1, -1, 0, 0, 1,
+        -1, +1, -1, 0, 0, 1,
+        +1, -1, -1, 0, 0, 1,
+        +1, +1, -1, 0, 0, 1,
+        -1, +1, -1, 0, 0, 1,
+        +1, -1, -1, 0, 0, 1,
+        // 底面
+        -1, -1, -1, 0, 1, 0,
+        -1, -1, +1, 0, 1, 0,
+        +1, -1, -1, 0, 1, 0,
+        +1, -1, +1, 0, 1, 0,
+        -1, -1, +1, 0, 1, 0,
+        +1, -1, -1, 0, 1, 0,
+    };
+    // clang-format on
+    glGenVertexArrays(1, &vao_walls_);
+    glGenBuffers(1, &vbo_walls_);
+
+    glBindVertexArray(vao_walls_);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_walls_);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(walls), walls, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+}
+
 void simulator::draw_spheres() {
-    glUseProgram(shader_sphere_);
+    glUseProgram(shader_);
     glBindVertexArray(vao_sphere_);
-    upd_camera(shader_sphere_);
+    upd_scene(shader_);
 
-    gmat4_t identity{1.F};    
-    glUniformMatrix4fv(glGetUniformLocation(shader_sphere_, "model"), 1, GL_FALSE, &identity[0][0]);
-    glUniform1f(glGetUniformLocation(shader_sphere_, "radius"), 1.F);
+    gmat4_t identity{1.F};
+    glUniformMatrix4fv(glGetUniformLocation(shader_, "model"), 1, GL_FALSE, &identity[0][0]);
+    glUniform1f(glGetUniformLocation(shader_, "radius"), .1F);
+    glUniform3f(glGetUniformLocation(shader_, "objectColor"), 0.4F, 1.0F, 0.2F);
 
-    glDrawElements(GL_TRIANGLE_STRIP, sphere_indice_cnt_, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLE_STRIP, (GLsizei)sphere_indice_cnt_, GL_UNSIGNED_INT, 0);
+}
+
+void simulator::draw_walls() {
+    glUseProgram(shader_);
+    glBindVertexArray(vao_walls_);
+    upd_scene(shader_);
+    gmat4_t identity{1.F};
+    glUniformMatrix4fv(glGetUniformLocation(shader_, "model"), 1, GL_FALSE, &identity[0][0]);
+    glUniform1f(glGetUniformLocation(shader_, "radius"), 1.0F);
+    glUniform3f(glGetUniformLocation(shader_, "objectColor"), 0.1F, 0.1F, 0.6F);
+
+    glDrawArrays(GL_TRIANGLES, 0, 18);
 }
 
 void simulator::loop() {
     while (!glfwWindowShouldClose(window_)) {
-        glClearColor(.2F, .3F, .3F, 1.0F);
+        glClearColor(.1F, .1F, .1F, 1.0F);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         process_input();
 
         draw_spheres();
+        draw_walls();
 
         glfwPollEvents();
         glfwSwapBuffers(window_);
@@ -197,18 +251,28 @@ void simulator::loop() {
     glfwTerminate();
 }
 
-void simulator::upd_camera(GLuint shader) {
+void simulator::upd_scene(GLuint shader) {
     glUseProgram(shader);
+
     const auto view = camera_.view_matrix();
     auto loc = glGetUniformLocation(shader, "view");
     glUniformMatrix4fv(loc, 1, GL_FALSE, &view[0][0]);
+
     const auto projection =
         glm::perspective(glm::radians(90.F), (float)g_win_width / (float)g_win_height, 0.1F, 10.F);
     loc = glGetUniformLocation(shader, "projection");
+    glUniformMatrix4fv(loc, 1, GL_FALSE, &projection[0][0]);
+
+    loc = glGetUniformLocation(shader, "lightPos");
+    glUniform3f(loc, 0.F, 1.F, 0.F);
+
+    loc = glGetUniformLocation(shader, "viewPos");
+    const auto cam_pos = camera_.eye_position();
+    glUniform3f(loc, cam_pos.x, cam_pos.y, cam_pos.z);
 }
 
 void simulator::process_input() {
-    constexpr float diff = 0.01F;
+    constexpr float diff = 0.001F;
     if (glfwGetKey(window_, GLFW_KEY_A)) {
         camera_.translate_left(diff);
     }
