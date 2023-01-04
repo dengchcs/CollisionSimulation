@@ -1,0 +1,4 @@
+﻿#ifndef SIMULATOR_IMPL_CUH
+#define SIMULATOR_IMPL_CUH
+
+#endif  // SIMULATOR_IMPL_CUH

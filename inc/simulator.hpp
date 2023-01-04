@@ -1,59 +1,28 @@
-﻿#ifndef SYSTEM_HPP
-#define SYSTEM_HPP
-
-#include <cstddef>
-
-#include "GLFW/glfw3.h"
-#include "camera.hpp"
-#include "engine.hpp"
+﻿#ifndef SIMULATOR_HPP
+#define SIMULATOR_HPP
 
 class simulator {
-    camera camera_{};
+    float *sphere_pos_ = nullptr;    // 每个球的XYZ坐标
+    float *sphere_velo_ = nullptr;   // 每个球XYZ方向的速度
+    float *sphere_accel_ = nullptr;  // 每个球XYZ方向的加速度
+    int *sphere_type_ = nullptr;     // 每个球的类型(在protos中的下标)
+    float max_radius_ = 0;           // 几种球中最大的半径
+    int sphere_num_ = 0;             // 要模拟的球的个数
 
-    GLFWwindow *window_ = nullptr;
-
-    GLuint shader_ = 0;
-
-    GLuint vao_sphere_ = 0;
-    GLuint vbo_sphere_ = 0;
-    GLuint ebo_sphere_ = 0;
-
-    GLuint vao_walls_ = 0;
-    GLuint vbo_walls_ = 0;
-
-    size_t sphere_indice_cnt_ = 0;
-
-    engine *engine_ = nullptr;
-
-    void init_window();
-    void init_shader();
-
-    /**
-     * @brief 使用三角面片初始化一个标准球面, 将数据写入缓冲中
-     */
-    void init_sphere();
-    void draw_spheres();
-
-    /**
-     * @brief 初始化左/后/底三面"墙"的数据, 写入缓冲
-     */
-    void init_walls();
-    void draw_walls();
-
-    /**
-     * @brief 根据相机状态设置shader中的相关变量
-     */
-    void upd_scene();
-
-    /**
-     * @brief 处理键盘输入事件
-     */
-    void process_input();
+    void set_initial_state();
+    void init_memory();
+    void free_memory();
 
 public:
     simulator();
-    ~simulator() = default;
-    void loop();
+
+    ~simulator();
+
+    [[nodiscard]] auto sphere_pos() const -> const float * { return sphere_pos_; }
+    [[nodiscard]] auto sphere_type() const -> const int * { return sphere_type_; }
+    [[nodiscard]] auto sphere_num() const -> int { return sphere_num_; }
+
+    void update(float elapse);
 };
 
-#endif
+#endif  // SIMULATOR_HPP

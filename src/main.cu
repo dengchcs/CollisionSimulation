@@ -3,10 +3,10 @@
 
 #include <iostream>
 
-#include "simulator.hpp"
+#include "renderer.hpp"
 
 auto main(int argc, char** argv) -> int {
-    simulator demo;
+    renderer demo;
     demo.loop();
     return 0;
 }
