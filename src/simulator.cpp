@@ -224,7 +224,14 @@ void simulator::draw_walls() {
 }
 
 void simulator::loop() {
+    constexpr double fps = 1.0 / 30.0;
+    double last_update_time = 0;
+    double last_frame_time = 0;
+
     while (!glfwWindowShouldClose(window_)) {
+        const double now = glfwGetTime();
+
+        glfwPollEvents();
         glClearColor(.1F, .1F, .1F, 1.0F);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -233,13 +240,16 @@ void simulator::loop() {
         draw_spheres();
         draw_walls();
 
-        glfwPollEvents();
-        glfwSwapBuffers(window_);
-
         auto error = glGetError();
         if (error != 0) {
             std::cerr << error << '\n';
         }
+
+        if (now - last_frame_time >= fps) {
+            glfwSwapBuffers(window_);
+            last_frame_time = now;
+        }
+        last_update_time = now;
     }
 
     glfwTerminate();
