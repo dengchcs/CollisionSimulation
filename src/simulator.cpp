@@ -17,6 +17,7 @@ simulator::simulator() {
     init_shader();
     init_sphere();
     init_walls();
+    engine_ = new engine{};
 }
 
 void simulator::init_window() {
@@ -198,16 +199,18 @@ void simulator::draw_spheres() {
     glUseProgram(shader_);
     glBindVertexArray(vao_sphere_);
     upd_scene();
-    const auto randf = []() { return (float)rand() / (float)RAND_MAX - 0.5F; };
-    for (int i = 0; i < sphere_proto_num; i++) {
-        const auto proto = sphere_protos[i];
+
+    const float* pos = engine_->sphere_pos();
+    const int* type = engine_->sphere_type();
+    const int num = engine_->sphere_num();
+    for (int i = 0; i < num; i++) {
+        const auto proto = sphere_protos[type[i]];
         glUniform1f(glGetUniformLocation(shader_, "scale"), proto.radius);
         glUniform3fv(glGetUniformLocation(shader_, "objectColor"), 1, &(proto.color[0]));
-        for (int j = 0; j < proto.num; j++) {
-            const auto model = glm::translate(gmat4_t{1.0F}, {randf(), randf(), randf()});
-            glUniformMatrix4fv(glGetUniformLocation(shader_, "model"), 1, GL_FALSE, &model[0][0]);
-            glDrawElements(GL_TRIANGLE_STRIP, (GLsizei)sphere_indice_cnt_, GL_UNSIGNED_INT, 0);
-        }
+        const gvec3_t sphere_pos{pos[3 * i], pos[3 * i + 1], pos[3 * i + 2]};
+        const auto model = glm::translate(gmat4_t{1.F}, sphere_pos);
+        glUniformMatrix4fv(glGetUniformLocation(shader_, "model"), 1, GL_FALSE, &model[0][0]);
+        glDrawElements(GL_TRIANGLE_STRIP, (GLsizei)sphere_indice_cnt_, GL_UNSIGNED_INT, 0);
     }
 }
 
@@ -276,17 +279,37 @@ void simulator::upd_scene() {
 }
 
 void simulator::process_input() {
-    constexpr float diff = 0.001F;
+    constexpr float move_diff = 0.001F;
     if (glfwGetKey(window_, GLFW_KEY_A)) {
-        camera_.translate_left(diff);
+        camera_.translate_left(move_diff);
     }
     if (glfwGetKey(window_, GLFW_KEY_D)) {
-        camera_.translate_left(-diff);
+        camera_.translate_left(-move_diff);
     }
     if (glfwGetKey(window_, GLFW_KEY_W)) {
-        camera_.translate_up(diff);
+        camera_.translate_up(move_diff);
     }
     if (glfwGetKey(window_, GLFW_KEY_S)) {
-        camera_.translate_up(-diff);
+        camera_.translate_up(-move_diff);
+    }
+    if (glfwGetKey(window_, GLFW_KEY_Z)) {
+        camera_.translate_forward(move_diff);
+    }
+    if (glfwGetKey(window_, GLFW_KEY_X)) {
+        camera_.translate_forward(-move_diff);
+    }
+
+    constexpr float rot_diff = 5.F;
+    if (glfwGetKey(window_, GLFW_KEY_UP)) {
+        camera_.rotate_up(rot_diff);
+    }
+    if (glfwGetKey(window_, GLFW_KEY_DOWN)) {
+        camera_.rotate_up(-rot_diff);
+    }
+    if (glfwGetKey(window_, GLFW_KEY_LEFT)) {
+        camera_.rotate_left(rot_diff);
+    }
+    if (glfwGetKey(window_, GLFW_KEY_RIGHT)) {
+        camera_.rotate_left(-rot_diff);
     }
 }

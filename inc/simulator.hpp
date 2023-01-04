@@ -5,6 +5,7 @@
 
 #include "GLFW/glfw3.h"
 #include "camera.hpp"
+#include "engine.hpp"
 
 class simulator {
     camera camera_{};
@@ -21,6 +22,8 @@ class simulator {
     GLuint vbo_walls_ = 0;
 
     size_t sphere_indice_cnt_ = 0;
+
+    engine *engine_ = nullptr;
 
     void init_window();
     void init_shader();
