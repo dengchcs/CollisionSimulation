@@ -1,11 +1,10 @@
 ﻿#ifndef SYSTEM_HPP
 #define SYSTEM_HPP
 
-#include <stddef.h>
+#include <cstddef>
 
 #include "GLFW/glfw3.h"
 #include "camera.hpp"
-#include "glad/glad.h"
 
 class simulator {
     camera camera_{};
@@ -26,14 +25,26 @@ class simulator {
     void init_window();
     void init_shader();
 
+    /**
+     * @brief 使用三角面片初始化一个标准球面, 将数据写入缓冲中
+     */
     void init_sphere();
     void draw_spheres();
 
+    /**
+     * @brief 初始化左/后/底三面"墙"的数据, 写入缓冲
+     */
     void init_walls();
     void draw_walls();
 
-    void upd_scene(GLuint shader);
+    /**
+     * @brief 根据相机状态设置shader中的相关变量
+     */
+    void upd_scene();
 
+    /**
+     * @brief 处理键盘输入事件
+     */
     void process_input();
 
 public:

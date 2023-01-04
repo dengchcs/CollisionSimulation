@@ -2,24 +2,23 @@
 #define SPHERE_HPP
 
 #include <array>
+
 #include "common.hpp"
 
-class sphere {
-    gvec3_t center_;
-    float radius_;
-    gvec3_t color_;
-
-public:
-    constexpr sphere(const gvec3_t& center, float radius, const gvec3_t& color)
-        : center_(center), radius_(radius), color_(color) {}
+struct sphere_proto {
+    float radius;
+    gvec3_t color;
+    int num;
+    constexpr sphere_proto(float radius, const gvec3_t& color, int num)
+        : radius(radius), color(color), num(num) {}
 };
 
-constexpr int proto_num = 4;
-const std::array<sphere, proto_num> protos = {
-    sphere{{0, 0, 0}, 1.F / 32.F, {0.8F, 0.2F, 0.2F}},
-    {{0, 0, 0}, 1.F / 32.F, {0.2F, 0.8F, 0.2F}},
-    {{0, 0, 0}, 1.F / 48.F, {0.2F, 0.2F, 0.8F}},
-    {{0, 0, 0}, 1.F / 64.F, {0.5F, 0.5F, 0.5F}},
+constexpr int sphere_proto_num = 4;
+const std::array<sphere_proto, sphere_proto_num> sphere_protos = {
+    sphere_proto{1.F / 32.F, {0.8F, 0.2F, 0.2F}, 20},
+    {1.F / 32.F, {0.2F, 0.8F, 0.2F}, 40},
+    {1.F / 48.F, {0.2F, 0.2F, 0.8F}, 60},
+    {1.F / 64.F, {0.5F, 0.5F, 0.5F}, 100},
 };
 
 #endif  // SPHERE_HPP

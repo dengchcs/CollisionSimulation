@@ -2,16 +2,15 @@
 
 #include <array>
 #include <cstddef>
-#include <fstream>
 #include <iostream>
-#include <iterator>
 #include <vector>
 
 #include "GLFW/glfw3.h"
 #include "common.hpp"
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_transform.hpp"
-
+#include "shader.hpp"
+#include "sphere.hpp"
 
 simulator::simulator() {
     init_window();
@@ -57,27 +56,22 @@ void simulator::init_shader() {
         }
     };
 
-    auto load_shader = [&](const char* vert_path, const char* frag_path) -> GLuint {
-        std::ifstream vert_file{vert_path}, frag_file{frag_path};
-        std::string _vert_code{std::istreambuf_iterator<char>{vert_file}, {}};
-        std::string _frag_code{std::istreambuf_iterator<char>{frag_file}, {}};
-        auto vert_code = _vert_code.c_str(), frag_code = _frag_code.c_str();
-
+    auto load_shader = [&](const char* vert_code, const char* frag_code) -> GLuint {
         const auto vert = glCreateShader(GL_VERTEX_SHADER);
         glShaderSource(vert, 1, &vert_code, nullptr);
         glCompileShader(vert);
-        check_shader(vert, vert_path);
+        check_shader(vert, "vert shader");
 
         const auto frag = glCreateShader(GL_FRAGMENT_SHADER);
         glShaderSource(frag, 1, &frag_code, nullptr);
         glCompileShader(frag);
-        check_shader(frag, frag_path);
+        check_shader(frag, "frag shader");
 
         const auto program = glCreateProgram();
         glAttachShader(program, vert);
         glAttachShader(program, frag);
         glLinkProgram(program);
-        check_program(program, vert_path);
+        check_program(program, "program");
 
         glDeleteShader(vert);
         glDeleteShader(frag);
@@ -85,15 +79,11 @@ void simulator::init_shader() {
         return program;
     };
 
-    // @todo: 改为可配置模式
-    shader_ = load_shader("./shaders/phong.vert", "./shaders/phong.frag");
+    shader_ = load_shader(g_phong_vert, g_phong_frag);
 
     std::cerr << "init_shaders(): " << glGetError() << '\n';
 }
 
-/**
- * @brief 使用三角面片初始化一个标准球面, 将数据写入缓冲中
- */
 void simulator::init_sphere() {
     std::vector<gvec3_t> vertices;
     std::vector<gvec3_t> normals;
@@ -207,23 +197,27 @@ void simulator::init_walls() {
 void simulator::draw_spheres() {
     glUseProgram(shader_);
     glBindVertexArray(vao_sphere_);
-    upd_scene(shader_);
-
-    gmat4_t identity{1.F};
-    glUniformMatrix4fv(glGetUniformLocation(shader_, "model"), 1, GL_FALSE, &identity[0][0]);
-    glUniform1f(glGetUniformLocation(shader_, "radius"), .1F);
-    glUniform3f(glGetUniformLocation(shader_, "objectColor"), 0.4F, 1.0F, 0.2F);
-
-    glDrawElements(GL_TRIANGLE_STRIP, (GLsizei)sphere_indice_cnt_, GL_UNSIGNED_INT, 0);
+    upd_scene();
+    const auto randf = []() { return (float)rand() / (float)RAND_MAX - 0.5F; };
+    for (int i = 0; i < sphere_proto_num; i++) {
+        const auto proto = sphere_protos[i];
+        glUniform1f(glGetUniformLocation(shader_, "scale"), proto.radius);
+        glUniform3fv(glGetUniformLocation(shader_, "objectColor"), 1, &(proto.color[0]));
+        for (int j = 0; j < proto.num; j++) {
+            const auto model = glm::translate(gmat4_t{1.0F}, {randf(), randf(), randf()});
+            glUniformMatrix4fv(glGetUniformLocation(shader_, "model"), 1, GL_FALSE, &model[0][0]);
+            glDrawElements(GL_TRIANGLE_STRIP, (GLsizei)sphere_indice_cnt_, GL_UNSIGNED_INT, 0);
+        }
+    }
 }
 
 void simulator::draw_walls() {
     glUseProgram(shader_);
     glBindVertexArray(vao_walls_);
-    upd_scene(shader_);
+    upd_scene();
     gmat4_t identity{1.F};
     glUniformMatrix4fv(glGetUniformLocation(shader_, "model"), 1, GL_FALSE, &identity[0][0]);
-    glUniform1f(glGetUniformLocation(shader_, "radius"), 1.0F);
+    glUniform1f(glGetUniformLocation(shader_, "scale"), 1.0F);
     glUniform3f(glGetUniformLocation(shader_, "objectColor"), 0.1F, 0.1F, 0.6F);
 
     glDrawArrays(GL_TRIANGLES, 0, 18);
@@ -251,22 +245,22 @@ void simulator::loop() {
     glfwTerminate();
 }
 
-void simulator::upd_scene(GLuint shader) {
-    glUseProgram(shader);
+void simulator::upd_scene() {
+    glUseProgram(shader_);
 
     const auto view = camera_.view_matrix();
-    auto loc = glGetUniformLocation(shader, "view");
+    auto loc = glGetUniformLocation(shader_, "view");
     glUniformMatrix4fv(loc, 1, GL_FALSE, &view[0][0]);
 
     const auto projection =
         glm::perspective(glm::radians(90.F), (float)g_win_width / (float)g_win_height, 0.1F, 10.F);
-    loc = glGetUniformLocation(shader, "projection");
+    loc = glGetUniformLocation(shader_, "projection");
     glUniformMatrix4fv(loc, 1, GL_FALSE, &projection[0][0]);
 
-    loc = glGetUniformLocation(shader, "lightPos");
+    loc = glGetUniformLocation(shader_, "lightPos");
     glUniform3f(loc, 0.F, 1.F, 0.F);
 
-    loc = glGetUniformLocation(shader, "viewPos");
+    loc = glGetUniformLocation(shader_, "viewPos");
     const auto cam_pos = camera_.eye_position();
     glUniform3f(loc, cam_pos.x, cam_pos.y, cam_pos.z);
 }
