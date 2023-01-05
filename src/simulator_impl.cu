@@ -23,24 +23,6 @@ __device__ auto calc_cell_pos(gvec3_t pos) -> gvec3i_t {
     };
 }
 
-__device__ auto vec3_ith(const float *pos_vec, size_t index) -> gvec3_t {
-    const auto index_3 = index * 3;
-    return {pos_vec[index_3], pos_vec[index_3 + 1], pos_vec[index_3 + 2]};
-}
-
-__device__ void set_vec3_ith(float *vec, size_t index, float x, float y, float z) {
-    const auto index_3 = index * 3;
-    vec[index_3 + 0] = x;
-    vec[index_3 + 1] = y;
-    vec[index_3 + 2] = z;
-}
-
-__global__ void test() {
-    auto force = gvec4_t{1.0F};
-    auto len = glm::length(force);
-    printf("damping = %f\n", params.damping);
-}
-
 void setup_params(sim_params *params_in) {
     check(cudaMemcpyToSymbol(params, params_in, sizeof(sim_params)), "setup_params()");
 }
@@ -49,8 +31,8 @@ void setup_params(sim_params *params_in) {
  * @brief 计算两球相撞时球1的受力
  */
 __device__ auto collide_two_dev(sphere sph1, sphere sph2) -> gvec3_t {
-    const float radius1 = sph1.proto.radius;
-    const float radius2 = sph2.proto.radius;
+    const float radius1 = params.radiuses[sph1.type];
+    const float radius2 = params.radiuses[sph2.type];
     const float radius_sum = radius1 + radius2;
     const auto rel_pos = sph2.pos - sph1.pos;
     const float dist = glm::length(rel_pos);
@@ -69,28 +51,27 @@ __device__ auto collide_two_dev(sphere sph1, sphere sph2) -> gvec3_t {
     return force;
 }
 
-__global__ void calc_cell_hash(size_t *hashes, size_t *indices, const float *pos) {
+__global__ void calc_cell_hash(size_t *hashes, size_t *indices, const sphere *spheres) {
     const auto index = THREAD_INDEX;
     if (index >= params.num_spheres) {
         return;
     }
-    const gvec3_t current_pos = vec3_ith(pos, index);
+    const gvec3_t current_pos = spheres[index].pos;
     const auto cell_pos = calc_cell_pos(current_pos);
     const auto hash = index;  // TODO:
     hashes[index] = hash;
     indices[index] = index;
 }
 
-__global__ void integrate(float elapse, float *pos_vec, float *veloc_vec, const float *accel_vec,
-                          const size_t *type_vec) {
+__global__ void integrate(float elapse, sphere *spheres) {
     const auto index = THREAD_INDEX;
     if (index >= params.num_spheres) {
         return;
     }
-    gvec3_t pos = vec3_ith(pos_vec, index);
-    gvec3_t veloc = vec3_ith(veloc_vec, index);
-    const gvec3_t accel = vec3_ith(accel_vec, index);
-    const auto type = type_vec[index];
+    gvec3_t pos = spheres[index].pos;
+    gvec3_t veloc = spheres[index].veloc;
+    const gvec3_t accel = spheres[index].accel;
+    const auto type = spheres[index].type;
     const auto radius = params.radiuses[type];
 
     veloc += accel * elapse;
@@ -110,16 +91,16 @@ __global__ void integrate(float elapse, float *pos_vec, float *veloc_vec, const 
     clamp_axis(1);
     clamp_axis(2);
 
-    set_vec3_ith(pos_vec, index, pos.x, pos.y, pos.z);
-    set_vec3_ith(veloc_vec, index, veloc.x, veloc.y, veloc.z);
+    spheres[index].pos = pos;
+    spheres[index].veloc = veloc;
 }
 
-void update_kern(float elapse, float *pos, float *veloc, float *accel, size_t *type, size_t *hashes,
+void update_kern(float elapse, sphere* spheres, size_t *hashes,
                  size_t *indices, int num_spheres) {
     // 不能在host中读取constant内存, 所以需要指定参数num_spheres
     const int num_threads = std::min(256, num_spheres);
     const int num_blocks = (num_spheres + num_threads - 1) / num_threads;
-    calc_cell_hash<<<num_blocks, num_threads>>>(hashes, indices, pos);
-    integrate<<<num_blocks, num_threads>>>(elapse, pos, veloc, accel, type);
+    calc_cell_hash<<<num_blocks, num_threads>>>(hashes, indices, spheres);
+    integrate<<<num_blocks, num_threads>>>(elapse, spheres);
     check(cudaDeviceSynchronize(), "sync after update");
 }

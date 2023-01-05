@@ -1,5 +1,7 @@
 ﻿#include "simulator.hpp"
 
+#include <stdlib.h>
+
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
@@ -16,27 +18,20 @@ simulator::simulator() {
     init_sim_params();
     init_memory();
     set_initial_state();
-    test();
 }
 
 simulator::~simulator() { free_memory(); }
 
 void simulator::init_memory() {
-    const auto nbytes_3f = 3LL * sim_params_.num_spheres * sizeof(float);
-    cudaMallocManaged(&pos_, nbytes_3f);
-    cudaMallocManaged(&veloc_, nbytes_3f);
-    cudaMallocManaged(&accel_, nbytes_3f);
     const auto nbytes_1s = sim_params_.num_spheres * sizeof(size_t);
-    cudaMallocManaged(&type_, nbytes_1s);
     cudaMallocManaged(&hashes_, nbytes_1s);
     cudaMallocManaged(&indices_, nbytes_1s);
+
+    cudaMallocManaged(&spheres_, sim_params_.num_spheres * sizeof(sphere));
 }
 
 void simulator::free_memory() {
-    cudaFree(pos_);
-    cudaFree(veloc_);
-    cudaFree(accel_);
-    cudaFree(type_);
+    cudaFree(spheres_);
     cudaFree(hashes_);
     cudaFree(indices_);
 }
@@ -61,17 +56,16 @@ void simulator::set_initial_state() {
         const int index_z = (i - index_x) / num_per_axis % num_per_axis;
         const int index_y = i / (num_per_axis * num_per_axis);
         const int pos_start = i * 3;
-        pos_[pos_start + 0] = -1.F + cell_len / 2.F + cell_len * index_x;
-        pos_[pos_start + 1] = 1.F - (cell_len / 2.F + cell_len * index_y);
-        pos_[pos_start + 2] = -1.F + cell_len / 2.F + cell_len * index_z;
-        type_[i] = rand() % sphere_proto_num;
-        // TODO:
-        veloc_[pos_start + 0] = random_float(0.5F * cell_len);
-        veloc_[pos_start + 1] = random_float(0.5F * cell_len);
-        veloc_[pos_start + 2] = random_float(0.5F * cell_len);
-        accel_[pos_start + 0] = 0;
-        accel_[pos_start + 1] = 0;
-        accel_[pos_start + 2] = 0;
+        spheres_[i].pos = {-1.F + cell_len / 2.F + cell_len * index_x,
+                           1.F - (cell_len / 2.F + cell_len * index_y),
+                           -1.F + cell_len / 2.F + cell_len * index_z};
+        spheres_[i].veloc = {
+            random_float(0.5F * cell_len),
+            random_float(0.5F * cell_len),
+            random_float(0.5F * cell_len),
+        };
+        spheres_[i].accel = {0.F, 0.F, 0.F};
+        spheres_[i].type = rand() % sphere_proto_num;
     }
 }
 
@@ -94,5 +88,5 @@ void simulator::init_sim_params() {
 }
 
 void simulator::update(float elapse) {
-    update_kern(elapse, pos_, veloc_, accel_, type_, hashes_, indices_, sim_params_.num_spheres);
+    update_kern(elapse, spheres_, hashes_, indices_, sim_params_.num_spheres);
 };

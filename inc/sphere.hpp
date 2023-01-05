@@ -1,6 +1,7 @@
 ﻿#ifndef SPHERE_HPP
 #define SPHERE_HPP
 
+#include <stddef.h>
 #include <array>
 
 #include "common.hpp"
@@ -22,7 +23,8 @@ struct sphere_proto {
  *
  */
 struct sphere {
-    sphere_proto proto;
+    // sphere_proto proto;
+    size_t type;
     gvec3_t pos;
     gvec3_t veloc;
     gvec3_t accel;

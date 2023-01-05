@@ -36,9 +36,6 @@ void setup_params(sim_params *params);
  * @param hashes
  * @param indices
  */
-void update_kern(float elapse, float *pos, float *veloc, float *accel, size_t *type, size_t *hashes,
-                 size_t *indices, int num_spheres);
-
-__global__ void test();
+void update_kern(float elapse, sphere *spheres, size_t *hashes, size_t *indices, int num_spheres);
 
 #endif  // SIMULATOR_IMPL_CUH

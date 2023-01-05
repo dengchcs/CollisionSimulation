@@ -205,15 +205,13 @@ void renderer::draw_spheres() {
     glBindVertexArray(vao_sphere_);
     upd_scene();
 
-    const float* pos = simulator_->sphere_pos();
-    const size_t* type = simulator_->sphere_type();
+    const auto* spheres = simulator_->spheres();
     const int num = simulator_->sphere_num();
     for (int i = 0; i < num; i++) {
-        const auto proto = sphere_protos[type[i]];
+        const auto proto = sphere_protos[spheres[i].type];
         glUniform1f(glGetUniformLocation(shader_, "scale"), proto.radius);
         glUniform3fv(glGetUniformLocation(shader_, "objectColor"), 1, &(proto.color[0]));
-        const gvec3_t sphere_pos{pos[3 * i], pos[3 * i + 1], pos[3 * i + 2]};
-        const auto model = glm::translate(gmat4_t{1.F}, sphere_pos);
+        const auto model = glm::translate(gmat4_t{1.F}, spheres[i].pos);
         glUniformMatrix4fv(glGetUniformLocation(shader_, "model"), 1, GL_FALSE, &model[0][0]);
         glDrawElements(GL_TRIANGLE_STRIP, (GLsizei)sphere_indice_cnt_, GL_UNSIGNED_INT, 0);
     }
