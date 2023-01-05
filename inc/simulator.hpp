@@ -1,26 +1,34 @@
 ﻿#ifndef SIMULATOR_HPP
 #define SIMULATOR_HPP
 
+#include <cstddef>
+
+#include "simulator_impl.cuh"
+
 class simulator {
-    float *sphere_pos_ = nullptr;    // 每个球的XYZ坐标
-    float *sphere_velo_ = nullptr;   // 每个球XYZ方向的速度
-    float *sphere_accel_ = nullptr;  // 每个球XYZ方向的加速度
-    int *sphere_type_ = nullptr;     // 每个球的类型(在protos中的下标)
-    float max_radius_ = 0;           // 几种球中最大的半径
-    int sphere_num_ = 0;             // 要模拟的球的个数
+    float *pos_ = nullptr;    // 每个球的XYZ坐标
+    float *veloc_ = nullptr;  // 每个球XYZ方向的速度
+    float *accel_ = nullptr;  // 每个球XYZ方向的加速度
+    size_t *type_ = nullptr;  // 每个球的类型(在protos中的下标)
+    size_t *hashes_ = nullptr;
+    size_t *indices_ = nullptr;
+
+    sim_params sim_params_;
 
     void set_initial_state();
     void init_memory();
     void free_memory();
+
+    void init_sim_params();
 
 public:
     simulator();
 
     ~simulator();
 
-    [[nodiscard]] auto sphere_pos() const -> const float * { return sphere_pos_; }
-    [[nodiscard]] auto sphere_type() const -> const int * { return sphere_type_; }
-    [[nodiscard]] auto sphere_num() const -> int { return sphere_num_; }
+    [[nodiscard]] auto sphere_pos() const -> const float * { return pos_; }
+    [[nodiscard]] auto sphere_type() const -> const size_t * { return type_; }
+    [[nodiscard]] auto sphere_num() const -> int { return sim_params_.num_spheres; }
 
     void update(float elapse);
 };

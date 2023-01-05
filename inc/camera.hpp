@@ -1,8 +1,6 @@
 ﻿#ifndef CAMERA_HPP
 #define CAMERA_HPP
 
-#include <glm/gtc/matrix_transform.hpp>
-
 #include "common.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/geometric.hpp"

@@ -1,5 +1,7 @@
 ﻿#include "renderer.hpp"
 
+#include <stddef.h>
+
 #include <array>
 #include <cstddef>
 #include <iostream>
@@ -12,6 +14,7 @@
 #include "shader.hpp"
 #include "sphere.hpp"
 
+
 renderer::renderer() {
     init_window();
     init_shader();
@@ -19,6 +22,8 @@ renderer::renderer() {
     init_walls();
     simulator_ = new simulator{};
 }
+
+renderer::~renderer() { delete simulator_; }
 
 void renderer::init_window() {
     glfwInit();
@@ -201,7 +206,7 @@ void renderer::draw_spheres() {
     upd_scene();
 
     const float* pos = simulator_->sphere_pos();
-    const int* type = simulator_->sphere_type();
+    const size_t* type = simulator_->sphere_type();
     const int num = simulator_->sphere_num();
     for (int i = 0; i < num; i++) {
         const auto proto = sphere_protos[type[i]];

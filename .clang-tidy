@@ -12,4 +12,5 @@ Checks: '
     -*-bool-conversion,
     -*swappable-parameters,
     -*-identifier-length,
+    -*-avoid-c-arrays,
     '

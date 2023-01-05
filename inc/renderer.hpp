@@ -52,7 +52,7 @@ class renderer {
 
 public:
     renderer();
-    ~renderer() = default;
+    ~renderer();
     void loop();
 };
 
