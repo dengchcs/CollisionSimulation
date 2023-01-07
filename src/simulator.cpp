@@ -86,7 +86,9 @@ void simulator::init_sim_params(const char *config_path) {
     for (int i = 0; i < sphere_proto_num; i++) {
         const auto proto = sphere_protos_[i];
         sim_params_.num_spheres += proto.num;
-        sim_params_.max_radius = std::max(sim_params_.max_radius, proto.radius);
+        if (proto.num > 0) {
+            sim_params_.max_radius = std::max(sim_params_.max_radius, proto.radius);
+        }
         sim_params_.radiuses[i] = proto.radius;
         sim_params_.masses[i] = proto.mass;
         sim_params_.spring[i] = proto.spring;

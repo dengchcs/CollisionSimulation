@@ -34,10 +34,6 @@ void setup_params(sim_params *params_in) {
     check(cudaMemcpyToSymbol(params, params_in, sizeof(sim_params)), "setup_params()");
 }
 
-__device__ void print_vec3(const char *leader, gvec3_t vec) {
-    printf("%s (%f, %f, %f)", leader, vec.x, vec.y, vec.z);
-}
-
 __device__ auto hash_func(gvec3i_t pos) -> size_t { return (pos.x << 16) | (pos.y << 8) | (pos.z); }
 
 __global__ void calc_cell_hash(size_t *hashes, size_t *indices, const sphere *spheres) {
