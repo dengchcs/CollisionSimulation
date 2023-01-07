@@ -36,7 +36,7 @@ uniform vec3 objectColor;
 void main() {
     // ambient
     float ambientStrength = 0.1;
-    vec3 lightColor = vec3(1.0F, 1.0F, 1.0F);
+    vec3 lightColor = vec3(0.8F, 0.8F, 0.8F);
     vec3 ambient = ambientStrength * lightColor;
   	
     // diffuse 

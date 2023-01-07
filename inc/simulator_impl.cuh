@@ -11,13 +11,12 @@ struct sim_params {
     float max_radius;
     float radiuses[sphere_proto_num];
     float masses[sphere_proto_num];
-    // float damping[sphere_proto_num][sphere_proto_num];
-    // float restitution[sphere_proto_num][sphere_proto_num];
-    // TODO: 改成每个小球各不相同的情况
-    float spring;
-    float damping;
-    float shear;
+    float spring[sphere_proto_num];
+    float damping[sphere_proto_num];
+    float shear[sphere_proto_num];
     float cell_len;
+    float bnd_friction;
+    gvec3_t gravity;
 };
 
 /**

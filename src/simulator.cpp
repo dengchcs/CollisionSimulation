@@ -1,13 +1,12 @@
 ﻿#include "simulator.hpp"
 
-#include <stddef.h>
-#include <stdlib.h>
-
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
 #include <iostream>
 #include <random>
+#include <vector>
 
 #include "cuda_runtime.h"
 #include "cuda_runtime_api.h"
@@ -48,28 +47,36 @@ void simulator::set_initial_state() {
         std::cerr << "too many objects to fit in the space\n";
         exit(1);
     }
-    auto random_float = [](float max_abs) -> float {
+
+    std::random_device rd;
+    std::default_random_engine re(rd());
+    auto random_float = [&](float max_abs) -> float {
         std::uniform_real_distribution<float> dist(-max_abs, max_abs);
-        static std::random_device rd;
-        static std::default_random_engine re(rd());
         return dist(re);
     };
+    std::vector<int> proto_types;
+    proto_types.reserve(sim_params_.num_spheres);
+    for (int i = 0; i < sphere_proto_num; i++) {
+        proto_types.insert(proto_types.end(), sphere_protos[i].num, i);
+    }
+    std::shuffle(proto_types.begin(), proto_types.end(), re);
+
     for (int i = 0; i < sim_params_.num_spheres; i++) {
         // i = per_axis^2 * index_y + per_axis * index_z + index_x
         const int index_x = i % num_per_axis;
         const int index_z = (i - index_x) / num_per_axis % num_per_axis;
         const int index_y = i / (num_per_axis * num_per_axis);
-        const int pos_start = i * 3;
         spheres_[i].pos = {-1.F + cell_len / 2.F + cell_len * index_x,
                            1.F - (cell_len / 2.F + cell_len * index_y),
                            -1.F + cell_len / 2.F + cell_len * index_z};
         spheres_[i].veloc = {
-            random_float(0.5F * cell_len),
-            random_float(0.5F * cell_len),
-            random_float(0.5F * cell_len),
+            random_float(0.005F * cell_len),
+            random_float(0.001F * cell_len),
+            random_float(0.005F * cell_len),
         };
         spheres_[i].accel = {0.F, 0.F, 0.F};
-        spheres_[i].type = rand() % sphere_proto_num;
+        spheres_[i].type = proto_types.back();
+        proto_types.pop_back();
     }
 }
 
@@ -82,12 +89,13 @@ void simulator::init_sim_params() {
         sim_params_.max_radius = std::max(sim_params_.max_radius, proto.radius);
         sim_params_.radiuses[i] = proto.radius;
         sim_params_.masses[i] = proto.mass;
+        sim_params_.spring[i] = proto.spring;
+        sim_params_.damping[i] = proto.damping;
+        sim_params_.shear[i] = proto.shear;
     }
-    sim_params_.spring = 1000.F;
-    sim_params_.damping = 0.02F;
-    sim_params_.shear = 0.1F;
     sim_params_.cell_len = 2 * sim_params_.max_radius;
-    // TODO: 设置更多参数
+    sim_params_.gravity = {0.F, -.5F, 0.F};
+    sim_params_.bnd_friction = 0.1F;
     setup_params(&sim_params_);
 }
 

@@ -1,7 +1,5 @@
 ﻿#include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
-#include <stddef.h>
-#include <stdio.h>
 
 #include <cmath>
 #include <cstddef>
@@ -85,9 +83,9 @@ __device__ auto collide_two(sphere sph1, sphere sph2) -> gvec3_t {
     gvec3_t rel_veloc = sph2.veloc - sph1.veloc;
     gvec3_t tan_veloc = rel_veloc - glm::dot(rel_veloc, normal) * normal;
 
-    force -= params.spring * (radius_sum - dist) * normal;
-    force += params.damping * rel_veloc;
-    force += params.shear * tan_veloc;
+    force -= params.spring[sph1.type] * (radius_sum - dist) * normal;
+    force += params.damping[sph1.type] * rel_veloc;
+    force += params.shear[sph1.type] * tan_veloc;
     return force;
 }
 
@@ -104,7 +102,6 @@ __global__ void collide_all(sphere *spheres, const size_t *indices, const size_t
     const auto target = spheres[sphere_idx];
     gvec3_t force{0.F};
 
-    int cnt = 0;
     const auto cell_pos = calc_cell_pos(target.pos);
     for (int x = -1; x <= 1; x++) {
         for (int y = -1; y <= 1; y++) {
@@ -139,18 +136,37 @@ __global__ void integrate(float elapse, sphere *spheres) {
     const gvec3_t accel = spheres[index].accel;
     const auto type = spheres[index].type;
     const auto radius = params.radiuses[type];
+    const auto spring = params.spring[type];
 
     veloc += accel * elapse;
-    veloc += gvec3_t{0.F, -1.F, 0.F} * elapse;
+    veloc += params.gravity * elapse;
     pos += veloc * elapse;
 
     auto clamp_axis = [&](int axis) {
+        bool bnd_touch = false;
+        const float v_axis_old_abs = std::abs(veloc[axis]);
         if (pos[axis] > 1.F - radius) {
+            bnd_touch = true;
             pos[axis] = 1.F - radius;
-            veloc[axis] = -std::abs(veloc[axis]) * 0.5F;
+            veloc[axis] = -spring * v_axis_old_abs;
         } else if (pos[axis] < -1.F + radius) {
+            bnd_touch = true;
             pos[axis] = -1.F + radius;
-            veloc[axis] = std::abs(veloc[axis]) * 0.5F;
+            veloc[axis] = spring * v_axis_old_abs;
+        }
+        if (bnd_touch) {
+            const float k = params.bnd_friction * (1 + spring);
+            const float v_plane1 = veloc[(axis + 1) % 3];
+            const float v_plane2 = veloc[(axis + 2) % 3];
+            const float v_plane_old = std::sqrt(v_plane1 * v_plane1 + v_plane2 * v_plane2);
+            if (v_plane_old > 0.F) {
+                float v_plane_new = v_plane_old - k * v_axis_old_abs;
+                if (v_plane_new <= 0.F) {
+                    v_plane_new = 0.F;
+                }
+                veloc[(axis + 1) % 3] = v_plane1 / v_plane_old * v_plane_new;
+                veloc[(axis + 2) % 3] = v_plane2 / v_plane_old * v_plane_new;
+            }
         }
     };
     clamp_axis(0);

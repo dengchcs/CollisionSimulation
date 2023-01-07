@@ -1,7 +1,5 @@
 ﻿#include "renderer.hpp"
 
-#include <stddef.h>
-
 #include <array>
 #include <cstddef>
 #include <iostream>
