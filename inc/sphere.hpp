@@ -4,7 +4,10 @@
 #include <array>
 
 #include "common.hpp"
-#include "toml.hpp"
+
+struct sphere_proto;
+constexpr int sphere_proto_num = 4;
+using sphere_proto_arr_t = std::array<sphere_proto, sphere_proto_num>;
 
 /**
  * @brief 球体的"原型", 不包含运动信息
@@ -27,7 +30,7 @@ struct sphere_proto {
           radius(radius),
           color(color),
           num(num) {}
-    static auto parse(const toml::array& proto) -> sphere_proto;
+    static auto parse(const char* file) -> sphere_proto_arr_t;
 };
 
 /**
@@ -41,10 +44,5 @@ struct sphere {
     gvec3_t veloc;
     gvec3_t accel;
 };
-
-constexpr int sphere_proto_num = 4;
-using sphere_proto_arr_t = std::array<sphere_proto, sphere_proto_num>;
-
-auto parse_protos(const char *name) -> sphere_proto_arr_t;
 
 #endif  // SPHERE_HPP

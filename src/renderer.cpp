@@ -9,14 +9,25 @@
 #include "glm/ext/matrix_transform.hpp"   // glm::translate()
 #include "shader.hpp"
 #include "sphere.hpp"
+#include "toml.hpp"
 
-renderer::renderer(const char *config_path) {
+auto renderer::config::parse(const char* file) -> config {
+    const auto data = toml::parse_file(file)["renderer"];
+    config parsed;
+    parsed.width = data["width"].value_or(800);
+    parsed.height = data["height"].value_or(800);
+    parsed.fps = data["fps"].value_or(30);
+    return parsed;
+}
+
+renderer::renderer(const char* config_path) {
+    sphere_protos_ = sphere_proto::parse(config_path);
+    config_ = config::parse(config_path);
+    simulator_ = new simulator{sphere_protos_, config_path};
     init_window();
     init_shader();
     init_sphere();
     init_walls();
-    sphere_protos_ = parse_protos(config_path);
-    simulator_ = new simulator{sphere_protos_};
 }
 
 renderer::~renderer() {
@@ -31,10 +42,11 @@ void renderer::init_window() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-    window_ = glfwCreateWindow(g_win_width, g_win_height, "CollisionSimulation", nullptr, nullptr);
+    window_ =
+        glfwCreateWindow(config_.width, config_.height, "CollisionSimulation", nullptr, nullptr);
     glfwMakeContextCurrent(window_);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
-    glViewport(0, 0, g_win_width, g_win_height);
+    glViewport(0, 0, config_.width, config_.height);
     glEnable(GL_DEPTH_TEST);
 
     // std::cerr << "init_window(): " << glGetError() << '\n';
@@ -234,9 +246,8 @@ void renderer::draw_walls() {
 }
 
 void renderer::loop() {
-    constexpr double fps = 1.0 / 30.0;
-    double last_update_time = 0;
-    double last_frame_time = 0;
+    double last_update_time = glfwGetTime();
+    double last_frame_time = last_update_time;
 
     while (!glfwWindowShouldClose(window_)) {
         const double now = glfwGetTime();
@@ -258,7 +269,7 @@ void renderer::loop() {
         }
 
         // 控制帧率
-        if (now - last_frame_time >= fps) {
+        if (now - last_frame_time >= 1.0F / (float)config_.fps) {
             glfwSwapBuffers(window_);
             last_frame_time = now;
         }
@@ -275,8 +286,8 @@ void renderer::upd_scene() {
     auto loc = glGetUniformLocation(shader_, "view");
     glUniformMatrix4fv(loc, 1, GL_FALSE, &view[0][0]);
 
-    const auto projection =
-        glm::perspective(glm::radians(60.F), (float)g_win_width / (float)g_win_height, 0.1F, 100.F);
+    const auto projection = glm::perspective(
+        glm::radians(60.F), (float)config_.width / (float)config_.height, 0.1F, 100.F);
     loc = glGetUniformLocation(shader_, "projection");
     glUniformMatrix4fv(loc, 1, GL_FALSE, &projection[0][0]);
 

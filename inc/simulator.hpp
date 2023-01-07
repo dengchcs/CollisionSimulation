@@ -17,10 +17,10 @@ class simulator {
     void init_memory();
     void free_memory();
 
-    void init_sim_params();
+    void init_sim_params(const char *config_path);
 
 public:
-    simulator(const sphere_proto_arr_t& protos);
+    simulator(const sphere_proto_arr_t &protos, const char *config_path);
 
     ~simulator();
 

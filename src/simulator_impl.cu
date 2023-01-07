@@ -5,7 +5,6 @@
 #include "cuda_runtime.h"
 #include "cuda_runtime_api.h"
 #include "glm/geometric.hpp"  // glm::length()/normalize()/...
-#include "helpers.cuh"
 #include "simulator_impl.cuh"
 #include "sphere.hpp"
 #include "thrust/device_ptr.h"
@@ -14,6 +13,14 @@
 __constant__ sim_params params;
 
 #define THREAD_INDEX ((blockIdx.x * blockDim.x) + threadIdx.x)
+
+void check(cudaError_t error, const char *name) {
+    if (error != cudaSuccess) {
+        std::cerr << name << " " << cudaGetErrorString(error) << '\n';
+        cudaDeviceReset();
+        exit(EXIT_FAILURE);
+    }
+}
 
 __device__ auto calc_cell_pos(gvec3_t pos) -> gvec3i_t {
     return {

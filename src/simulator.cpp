@@ -10,10 +10,11 @@
 #include "cuda_runtime_api.h"
 #include "simulator_impl.cuh"
 #include "sphere.hpp"
+#include "toml.hpp"
 
-simulator::simulator(const sphere_proto_arr_t& protos) {
+simulator::simulator(const sphere_proto_arr_t &protos, const char *config_path) {
     sphere_protos_ = protos;
-    init_sim_params();
+    init_sim_params(config_path);
     init_memory();
     set_initial_state();
 }
@@ -79,7 +80,7 @@ void simulator::set_initial_state() {
     }
 }
 
-void simulator::init_sim_params() {
+void simulator::init_sim_params(const char *config_path) {
     sim_params_.num_spheres = 0;
     sim_params_.max_radius = 0;
     for (int i = 0; i < sphere_proto_num; i++) {
@@ -93,8 +94,13 @@ void simulator::init_sim_params() {
         sim_params_.shear[i] = proto.shear;
     }
     sim_params_.cell_len = 2 * sim_params_.max_radius;
-    sim_params_.gravity = {0.F, -.5F, 0.F};
-    sim_params_.bnd_friction = 0.1F;
+
+    const auto physics = toml::parse_file(config_path)["physics"];
+    sim_params_.bnd_friction = physics["bnd_friction"].value_or(0.1F);
+    const auto gravity = physics["gravity"];
+    sim_params_.gravity = {gravity[0].value_or(0.0F), gravity[1].value_or(-0.5F),
+                           gravity[2].value_or(0.0F)};
+
     setup_params(&sim_params_);
 }
 
