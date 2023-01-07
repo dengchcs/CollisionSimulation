@@ -12,7 +12,7 @@ class camera {
     gvec3_t center_;
 
 public:
-    camera() : eye_(1, 1, 1), up_(glm::normalize(gvec3_t{-1, 2, -1})), center_(0, 0, 0){};
+    camera() : eye_(2, 1, 2), up_(glm::normalize(gvec3_t{-1, 3, -1})), center_(-1, -1, -1){};
 
     camera(const gvec3_t& eye, const gvec3_t& up, const gvec3_t& center)
         : eye_(eye),

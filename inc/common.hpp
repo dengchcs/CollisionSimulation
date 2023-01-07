@@ -13,7 +13,7 @@ using gmat4_t = glm::mat4;
 using gvec4_t = glm::vec4;
 using gvec3i_t = glm::vec<3, int>;
 
-constexpr GLuint g_win_width = 1200;
+constexpr GLuint g_win_width = 800;
 constexpr GLuint g_win_height = 800;
 
 constexpr float g_pi = 3.14159265F;

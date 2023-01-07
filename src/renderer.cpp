@@ -14,7 +14,6 @@
 #include "shader.hpp"
 #include "sphere.hpp"
 
-
 renderer::renderer() {
     init_window();
     init_shader();
@@ -224,7 +223,7 @@ void renderer::draw_walls() {
     gmat4_t identity{1.F};
     glUniformMatrix4fv(glGetUniformLocation(shader_, "model"), 1, GL_FALSE, &identity[0][0]);
     glUniform1f(glGetUniformLocation(shader_, "scale"), 1.0F);
-    glUniform3f(glGetUniformLocation(shader_, "objectColor"), 0.1F, 0.1F, 0.6F);
+    glUniform3f(glGetUniformLocation(shader_, "objectColor"), 0.79F, 0.79F, 0.99F);
 
     glDrawArrays(GL_TRIANGLES, 0, 18);
 }
@@ -239,7 +238,7 @@ void renderer::loop() {
         const auto elapse = (float)(now - last_update_time);
 
         glfwPollEvents();
-        glClearColor(.1F, .1F, .1F, 1.0F);
+        glClearColor(.75F, .75F, .75F, 1.0F);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         process_input();
@@ -271,12 +270,12 @@ void renderer::upd_scene() {
     glUniformMatrix4fv(loc, 1, GL_FALSE, &view[0][0]);
 
     const auto projection =
-        glm::perspective(glm::radians(90.F), (float)g_win_width / (float)g_win_height, 0.1F, 10.F);
+        glm::perspective(glm::radians(60.F), (float)g_win_width / (float)g_win_height, 0.1F, 100.F);
     loc = glGetUniformLocation(shader_, "projection");
     glUniformMatrix4fv(loc, 1, GL_FALSE, &projection[0][0]);
 
     loc = glGetUniformLocation(shader_, "lightPos");
-    glUniform3f(loc, 0.F, 1.F, 0.F);
+    glUniform3f(loc, 1.F, 1.F, 1.F);
 
     loc = glGetUniformLocation(shader_, "viewPos");
     const auto cam_pos = camera_.eye_position();

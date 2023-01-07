@@ -32,10 +32,10 @@ struct sphere {
 
 constexpr int sphere_proto_num = 4;
 const std::array<sphere_proto, sphere_proto_num> sphere_protos = {
-    sphere_proto{2.0F, 1.F / 32.F, {0.8F, 0.2F, 0.2F}, 10},
-    {1.5F, 1.F / 32.F, {0.2F, 0.8F, 0.2F}, 10},
-    {1.F, 1.F / 48.F, {0.2F, 0.2F, 0.8F}, 10},
-    {1.F, 1.F / 64.F, {0.5F, 0.5F, 0.5F}, 10},
+    sphere_proto{2.0F, 1.F / 16.F, {0.99F, 0.40F, 0.40F}, 10},
+    {1.5F, 1.F / 16.F, {0.60F, 0.99F, 0.60F}, 10},
+    {1.F, 1.F / 24.F, {0.68F, 0.93F, 0.93F}, 10},
+    {1.F, 1.F / 32.F, {0.99F, 0.89F, 0.71F}, 10},
 };
 
 #endif  // SPHERE_HPP
