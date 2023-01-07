@@ -1,11 +1,10 @@
 ﻿#ifndef RENDERER_HPP
 #define RENDERER_HPP
 
-#include <cstddef>
-
 #include "GLFW/glfw3.h"
 #include "camera.hpp"
 #include "simulator.hpp"
+#include "sphere.hpp"
 
 class renderer {
     camera camera_{};
@@ -21,11 +20,18 @@ class renderer {
     GLuint vao_walls_ = 0;
     GLuint vbo_walls_ = 0;
 
-    size_t sphere_indice_cnt_ = 0;
+    size_t sphere_indice_cnt_ = 0;  // 记录单个球渲染的面片数量
 
     simulator *simulator_ = nullptr;
+    sphere_proto_arr_t sphere_protos_;
 
+    /**
+     * @brief 初始化glfw系统
+     */
     void init_window();
+    /**
+     * @brief 读取shader代码, 创建shader程序
+     */
     void init_shader();
 
     /**
@@ -51,8 +57,12 @@ class renderer {
     void process_input();
 
 public:
-    renderer();
+    renderer(const char *config_path);
     ~renderer();
+
+    /**
+     * @brief 主循环: 计算球体状态并渲染
+     */
     void loop();
 };
 

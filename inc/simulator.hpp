@@ -1,11 +1,10 @@
 ﻿#ifndef SIMULATOR_HPP
 #define SIMULATOR_HPP
 
-#include <cstddef>
-
 #include "simulator_impl.cuh"
 
 class simulator {
+    sphere_proto_arr_t sphere_protos_;
     sphere *spheres_ = nullptr;
     size_t *hashes_ = nullptr;
     size_t *indices_ = nullptr;
@@ -21,7 +20,7 @@ class simulator {
     void init_sim_params();
 
 public:
-    simulator();
+    simulator(const sphere_proto_arr_t& protos);
 
     ~simulator();
 

@@ -2,8 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstddef>
-#include <cstdlib>
 #include <iostream>
 #include <random>
 #include <vector>
@@ -13,7 +11,8 @@
 #include "simulator_impl.cuh"
 #include "sphere.hpp"
 
-simulator::simulator() {
+simulator::simulator(const sphere_proto_arr_t& protos) {
+    sphere_protos_ = protos;
     init_sim_params();
     init_memory();
     set_initial_state();
@@ -57,7 +56,7 @@ void simulator::set_initial_state() {
     std::vector<int> proto_types;
     proto_types.reserve(sim_params_.num_spheres);
     for (int i = 0; i < sphere_proto_num; i++) {
-        proto_types.insert(proto_types.end(), sphere_protos[i].num, i);
+        proto_types.insert(proto_types.end(), sphere_protos_[i].num, i);
     }
     std::shuffle(proto_types.begin(), proto_types.end(), re);
 
@@ -84,7 +83,7 @@ void simulator::init_sim_params() {
     sim_params_.num_spheres = 0;
     sim_params_.max_radius = 0;
     for (int i = 0; i < sphere_proto_num; i++) {
-        const auto proto = sphere_protos[i];
+        const auto proto = sphere_protos_[i];
         sim_params_.num_spheres += proto.num;
         sim_params_.max_radius = std::max(sim_params_.max_radius, proto.radius);
         sim_params_.radiuses[i] = proto.radius;

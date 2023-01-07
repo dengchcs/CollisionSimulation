@@ -1,13 +1,10 @@
-﻿#include <cuda_runtime.h>
-#include <cuda_runtime_api.h>
-
-#include <cmath>
-#include <cstddef>
+﻿#include <cmath>
 #include <cstdio>
-#include <limits>
 
 #include "common.hpp"
-#include "glm/geometric.hpp"
+#include "cuda_runtime.h"
+#include "cuda_runtime_api.h"
+#include "glm/geometric.hpp"  // glm::length()/normalize()/...
 #include "helpers.cuh"
 #include "simulator_impl.cuh"
 #include "sphere.hpp"

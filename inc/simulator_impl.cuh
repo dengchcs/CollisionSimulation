@@ -1,9 +1,6 @@
 ﻿#ifndef SIMULATOR_IMPL_CUH
 #define SIMULATOR_IMPL_CUH
 
-#include <cstddef>
-
-#include "cuda_runtime.h"
 #include "sphere.hpp"
 
 struct sim_params {
@@ -26,14 +23,6 @@ void setup_params(sim_params *params);
 
 /**
  * @brief GPU上进行碰撞检测并更新球体状态
- *
- * @param elapse
- * @param pos
- * @param veloc
- * @param accel
- * @param type
- * @param hashes
- * @param indices
  */
 void update_kern(float elapse, sphere *spheres, size_t *hashes, size_t *indices, size_t *cell_start,
                  size_t *cell_end, int num_spheres);

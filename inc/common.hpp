@@ -1,12 +1,13 @@
-﻿#ifndef COMMON_HPP
+﻿/**
+ * @file common.hpp 定义一些类型别名和常量
+ */
+#ifndef COMMON_HPP
 #define COMMON_HPP
 
-#include <glad/glad.h>
-
-#include <glm/ext/matrix_float4x4.hpp>
-#include <glm/ext/vector_float3.hpp>
-#include <glm/ext/vector_float4.hpp>
-
+#include "glad/glad.h"
+#include "glm/ext/matrix_float4x4.hpp"
+#include "glm/ext/vector_float3.hpp"
+#include "glm/ext/vector_float4.hpp"
 
 using gvec3_t = glm::vec3;
 using gmat4_t = glm::mat4;

@@ -1,12 +1,10 @@
-﻿#include <GLFW/glfw3.h>
-#include <glad/glad.h>
-
-#include <iostream>
-
-#include "renderer.hpp"
+﻿#include "renderer.hpp"
 
 auto main(int argc, char** argv) -> int {
-    renderer demo;
+    if (argc != 2) {
+        fprintf(stderr, "usage: collision <config-path>\n");
+    }
+    renderer demo{argv[1]};
     demo.loop();
     return 0;
 }

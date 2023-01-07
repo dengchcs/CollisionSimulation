@@ -2,9 +2,9 @@
 #define SPHERE_HPP
 
 #include <array>
-#include <cstddef>
 
 #include "common.hpp"
+#include "toml.hpp"
 
 /**
  * @brief 球体的"原型", 不包含运动信息
@@ -17,6 +17,7 @@ struct sphere_proto {
     float radius;
     gvec3_t color;
     int num;
+    sphere_proto() = default;
     constexpr sphere_proto(float spring, float damping, float shear, float mass, float radius,
                            const gvec3_t& color, int num)
         : spring(spring),
@@ -26,6 +27,7 @@ struct sphere_proto {
           radius(radius),
           color(color),
           num(num) {}
+    static auto parse(const toml::array& proto) -> sphere_proto;
 };
 
 /**
@@ -41,11 +43,8 @@ struct sphere {
 };
 
 constexpr int sphere_proto_num = 4;
-const std::array<sphere_proto, sphere_proto_num> sphere_protos = {
-    sphere_proto{.3F, 0.02, 0.1F, 0.02F, 1.F / 16.F, {0.99F, 0.40F, 0.40F}, 10},
-    {1.F, 0.02F, 0.1F, 0.015F, 1.F / 24.F, {0.60F, 0.99F, 0.60F}, 500},
-    {.8F, 0.02F, 0.1F, 0.01F, 1.F / 32.F, {0.68F, 0.93F, 0.93F}, 100},
-    {.8F, 0.02F, 0.1F, 0.01F, 1.F / 48.F, {0.99F, 0.89F, 0.71F}, 3000},
-};
+using sphere_proto_arr_t = std::array<sphere_proto, sphere_proto_num>;
+
+auto parse_protos(const char *name) -> sphere_proto_arr_t;
 
 #endif  // SPHERE_HPP

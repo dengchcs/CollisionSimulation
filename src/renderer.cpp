@@ -1,26 +1,28 @@
 ﻿#include "renderer.hpp"
 
-#include <array>
-#include <cstddef>
 #include <iostream>
 #include <vector>
 
 #include "GLFW/glfw3.h"
 #include "common.hpp"
-#include "glm/ext/matrix_clip_space.hpp"
-#include "glm/ext/matrix_transform.hpp"
+#include "glm/ext/matrix_clip_space.hpp"  // glm::perspective()
+#include "glm/ext/matrix_transform.hpp"   // glm::translate()
 #include "shader.hpp"
 #include "sphere.hpp"
 
-renderer::renderer() {
+renderer::renderer(const char *config_path) {
     init_window();
     init_shader();
     init_sphere();
     init_walls();
-    simulator_ = new simulator{};
+    sphere_protos_ = parse_protos(config_path);
+    simulator_ = new simulator{sphere_protos_};
 }
 
-renderer::~renderer() { delete simulator_; }
+renderer::~renderer() {
+    delete simulator_;
+    glfwTerminate();
+}
 
 void renderer::init_window() {
     glfwInit();
@@ -35,7 +37,7 @@ void renderer::init_window() {
     glViewport(0, 0, g_win_width, g_win_height);
     glEnable(GL_DEPTH_TEST);
 
-    std::cerr << "init_window(): " << glGetError() << '\n';
+    // std::cerr << "init_window(): " << glGetError() << '\n';
 }
 
 void renderer::init_shader() {
@@ -82,12 +84,15 @@ void renderer::init_shader() {
         return program;
     };
 
+    // 程序只使用了一个shader程序, 但抽象成lambda便于后续扩展
     shader_ = load_shader(g_phong_vert, g_phong_frag);
 
-    std::cerr << "init_shaders(): " << glGetError() << '\n';
+    // std::cerr << "init_shaders(): " << glGetError() << '\n';
 }
 
 void renderer::init_sphere() {
+    // 球面由多个三角面片近似而成
+
     std::vector<gvec3_t> vertices;
     std::vector<gvec3_t> normals;
     std::vector<GLuint> indices;
@@ -125,6 +130,7 @@ void renderer::init_sphere() {
 
     sphere_indice_cnt_ = indices.size();
 
+    // 和 vert shader 保持一致: 输入是两个 vec3: pos & normal
     std::vector<float> draw_data;
     draw_data.reserve(3ULL * 2 * vertices.size());
     for (size_t i = 0; i < vertices.size(); i++) {
@@ -148,18 +154,19 @@ void renderer::init_sphere() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_sphere_);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(),
                  GL_STATIC_DRAW);
+
     const size_t stride = (3 + 3) * sizeof(float);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
     glEnableVertexAttribArray(0);
-
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
-    std::cerr << "init_sphere(): " << glGetError() << '\n';
+    // std::cerr << "init_sphere(): " << glGetError() << '\n';
 }
 
 void renderer::init_walls() {
     // clang-format off
+    // 墙面由若干三角形组成, 每行数据: 顶点 + 法向
     float walls[] = {
         // 左侧面
         -1, -1, -1, 1, 0, 0,
@@ -205,7 +212,7 @@ void renderer::draw_spheres() {
     const auto* spheres = simulator_->spheres();
     const int num = simulator_->sphere_num();
     for (int i = 0; i < num; i++) {
-        const auto proto = sphere_protos[spheres[i].type];
+        const auto proto = sphere_protos_[spheres[i].type];
         glUniform1f(glGetUniformLocation(shader_, "scale"), proto.radius);
         glUniform3fv(glGetUniformLocation(shader_, "objectColor"), 1, &(proto.color[0]));
         const auto model = glm::translate(gmat4_t{1.F}, spheres[i].pos);
@@ -250,6 +257,7 @@ void renderer::loop() {
             std::cerr << error << '\n';
         }
 
+        // 控制帧率
         if (now - last_frame_time >= fps) {
             glfwSwapBuffers(window_);
             last_frame_time = now;
@@ -257,7 +265,7 @@ void renderer::loop() {
         last_update_time = now;
     }
 
-    glfwTerminate();
+    // glfwTerminate();
 }
 
 void renderer::upd_scene() {
@@ -273,7 +281,7 @@ void renderer::upd_scene() {
     glUniformMatrix4fv(loc, 1, GL_FALSE, &projection[0][0]);
 
     loc = glGetUniformLocation(shader_, "lightPos");
-    glUniform3f(loc, 1.F, 1.F, 1.F);
+    glUniform3f(loc, 1.F, 1.F, 1.F);  // 光照设置在距三面墙的最远处
 
     loc = glGetUniformLocation(shader_, "viewPos");
     const auto cam_pos = camera_.eye_position();
@@ -301,7 +309,7 @@ void renderer::process_input() {
         camera_.translate_forward(-move_diff);
     }
 
-    constexpr float rot_diff = 5.F;
+    constexpr float rot_diff = 1.F;
     if (glfwGetKey(window_, GLFW_KEY_UP)) {
         camera_.rotate_up(rot_diff);
     }
