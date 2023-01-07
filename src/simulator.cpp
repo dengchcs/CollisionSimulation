@@ -1,5 +1,6 @@
 ﻿#include "simulator.hpp"
 
+#include <stddef.h>
 #include <stdlib.h>
 
 #include <cmath>
@@ -13,7 +14,6 @@
 #include "simulator_impl.cuh"
 #include "sphere.hpp"
 
-
 simulator::simulator() {
     init_sim_params();
     init_memory();
@@ -23,9 +23,11 @@ simulator::simulator() {
 simulator::~simulator() { free_memory(); }
 
 void simulator::init_memory() {
-    const auto nbytes_1s = sim_params_.num_spheres * sizeof(size_t);
-    cudaMallocManaged(&hashes_, nbytes_1s);
-    cudaMallocManaged(&indices_, nbytes_1s);
+    const auto nbytes_1u = sim_params_.num_spheres * sizeof(size_t);
+    cudaMallocManaged(&hashes_, nbytes_1u);
+    cudaMallocManaged(&indices_, nbytes_1u);
+    cudaMallocManaged(&cell_start_, (1 << 24) * sizeof(size_t));
+    cudaMallocManaged(&cell_end_, (1 << 24) * sizeof(size_t));
 
     cudaMallocManaged(&spheres_, sim_params_.num_spheres * sizeof(sphere));
 }
@@ -34,6 +36,8 @@ void simulator::free_memory() {
     cudaFree(spheres_);
     cudaFree(hashes_);
     cudaFree(indices_);
+    cudaFree(cell_start_);
+    cudaFree(cell_end_);
 }
 
 void simulator::set_initial_state() {
@@ -79,7 +83,7 @@ void simulator::init_sim_params() {
         sim_params_.radiuses[i] = proto.radius;
         sim_params_.masses[i] = proto.mass;
     }
-    sim_params_.spring = 0.5F;
+    sim_params_.spring = 1000.F;
     sim_params_.damping = 0.02F;
     sim_params_.shear = 0.1F;
     sim_params_.cell_len = 2 * sim_params_.max_radius;
@@ -88,5 +92,6 @@ void simulator::init_sim_params() {
 }
 
 void simulator::update(float elapse) {
-    update_kern(elapse, spheres_, hashes_, indices_, sim_params_.num_spheres);
+    update_kern(elapse, spheres_, hashes_, indices_, cell_start_, cell_end_,
+                sim_params_.num_spheres);
 };

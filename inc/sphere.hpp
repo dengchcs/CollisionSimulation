@@ -1,8 +1,8 @@
 ﻿#ifndef SPHERE_HPP
 #define SPHERE_HPP
 
-#include <stddef.h>
 #include <array>
+#include <cstddef>
 
 #include "common.hpp"
 
@@ -32,10 +32,10 @@ struct sphere {
 
 constexpr int sphere_proto_num = 4;
 const std::array<sphere_proto, sphere_proto_num> sphere_protos = {
-    sphere_proto{2.0F, 1.F / 32.F, {0.8F, 0.2F, 0.2F}, 20},
-    {1.5F, 1.F / 32.F, {0.2F, 0.8F, 0.2F}, 40},
-    {1.F, 1.F / 48.F, {0.2F, 0.2F, 0.8F}, 60},
-    {1.F, 1.F / 64.F, {0.5F, 0.5F, 0.5F}, 100},
+    sphere_proto{2.0F, 1.F / 32.F, {0.8F, 0.2F, 0.2F}, 10},
+    {1.5F, 1.F / 32.F, {0.2F, 0.8F, 0.2F}, 10},
+    {1.F, 1.F / 48.F, {0.2F, 0.2F, 0.8F}, 10},
+    {1.F, 1.F / 64.F, {0.5F, 0.5F, 0.5F}, 10},
 };
 
 #endif  // SPHERE_HPP

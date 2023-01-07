@@ -9,14 +9,15 @@ after_build(function (target)
     print("binary at: %s", filepath)
 end)
 
-add_requires("glm", "glfw", "glad")
+add_requires("glm", "glfw", "glad", "thrust")
 
 target("collision")
     set_kind("binary")
     set_arch("x64")
     add_files("src/*.cu", "src/*.c", "src/*.cpp")
     add_includedirs("inc")
-    add_packages("glm", "glfw", "glad")
+    add_packages("glm", "glfw", "glad", "thrust")
+    add_defines("THRUST_IGNORE_CUB_VERSION_CHECK")
     -- generate relocatable device code for device linker of dependents.
     -- if __device__ or __global__ functions will be called cross file,
     -- or dynamic parallelism will be used,
