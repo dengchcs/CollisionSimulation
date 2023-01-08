@@ -3,6 +3,7 @@
 
 #include "sphere.hpp"
 
+// kernel使用的模拟配置, 目前限制了原型的数量. 将来可以扩展成支持运行时配置原型数量
 struct sim_params {
     int num_spheres;
     float max_radius;

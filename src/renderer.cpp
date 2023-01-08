@@ -17,6 +17,9 @@ auto renderer::config::parse(const char* file) -> config {
     parsed.width = data["width"].value_or(800);
     parsed.height = data["height"].value_or(800);
     parsed.fps = data["fps"].value_or(30);
+    parsed.sphere_frag = data["sphere_frag"].value_or(64);
+    parsed.move_diff = data["move_diff"].value_or(0.005F);
+    parsed.rot_diff = data["rot_diff"].value_or(1.0F);
     return parsed;
 }
 
@@ -24,6 +27,7 @@ renderer::renderer(const char* config_path) {
     sphere_protos_ = sphere_proto::parse(config_path);
     config_ = config::parse(config_path);
     simulator_ = new simulator{sphere_protos_, config_path};
+    // 先初始化配置项再初始化gl
     init_window();
     init_shader();
     init_sphere();
@@ -109,13 +113,10 @@ void renderer::init_sphere() {
     std::vector<gvec3_t> normals;
     std::vector<GLuint> indices;
 
-    constexpr size_t vertical_frag = 64;
-    constexpr size_t horizontal_frag = 64;
-
-    for (size_t y = 0; y <= vertical_frag; y++) {
-        for (size_t x = 0; x <= horizontal_frag; x++) {
-            const float xSeg = (float)x / (float)horizontal_frag;
-            const float ySeg = (float)y / (float)vertical_frag;
+    for (size_t y = 0; y <= config_.sphere_frag; y++) {
+        for (size_t x = 0; x <= config_.sphere_frag; x++) {
+            const float xSeg = (float)x / (float)config_.sphere_frag;
+            const float ySeg = (float)y / (float)config_.sphere_frag;
             const float xPos = std::cos(xSeg * 2.0F * g_pi) * std::sin(ySeg * g_pi);
             const float yPos = std::cos(ySeg * g_pi);
             const float zPos = std::sin(xSeg * 2.0F * g_pi) * std::sin(ySeg * g_pi);
@@ -125,16 +126,16 @@ void renderer::init_sphere() {
     }
 
     bool odd_row = false;
-    for (size_t y = 0; y < vertical_frag; y++) {
+    for (size_t y = 0; y < config_.sphere_frag; y++) {
         if (!odd_row) {
-            for (size_t x = 0; x <= horizontal_frag; x++) {
-                indices.push_back(y * (horizontal_frag + 1) + x);
-                indices.push_back((y + 1) * (horizontal_frag + 1) + x);
+            for (size_t x = 0; x <= config_.sphere_frag; x++) {
+                indices.push_back(y * (config_.sphere_frag + 1) + x);
+                indices.push_back((y + 1) * (config_.sphere_frag + 1) + x);
             }
         } else {
-            for (int x = horizontal_frag; x >= 0; x--) {
-                indices.push_back((y + 1) * (horizontal_frag + 1) + x);
-                indices.push_back(y * (horizontal_frag + 1) + x);
+            for (int x = config_.sphere_frag; x >= 0; x--) {
+                indices.push_back((y + 1) * (config_.sphere_frag + 1) + x);
+                indices.push_back(y * (config_.sphere_frag + 1) + x);
             }
         }
         odd_row = !odd_row;
@@ -227,6 +228,7 @@ void renderer::draw_spheres() {
         const auto proto = sphere_protos_[spheres[i].type];
         glUniform1f(glGetUniformLocation(shader_, "scale"), proto.radius);
         glUniform3fv(glGetUniformLocation(shader_, "objectColor"), 1, &(proto.color[0]));
+        // "标准"球体是在原点, 所以绘制时的平移量就是球心位置
         const auto model = glm::translate(gmat4_t{1.F}, spheres[i].pos);
         glUniformMatrix4fv(glGetUniformLocation(shader_, "model"), 1, GL_FALSE, &model[0][0]);
         glDrawElements(GL_TRIANGLE_STRIP, (GLsizei)sphere_indice_cnt_, GL_UNSIGNED_INT, 0);
@@ -300,7 +302,7 @@ void renderer::upd_scene() {
 }
 
 void renderer::process_input() {
-    constexpr float move_diff = 0.001F;
+    const float move_diff = config_.move_diff;
     if (glfwGetKey(window_, GLFW_KEY_A)) {
         camera_.translate_left(move_diff);
     }
@@ -320,7 +322,7 @@ void renderer::process_input() {
         camera_.translate_forward(-move_diff);
     }
 
-    constexpr float rot_diff = 1.F;
+    const float rot_diff = config_.rot_diff;
     if (glfwGetKey(window_, GLFW_KEY_UP)) {
         camera_.rotate_up(rot_diff);
     }

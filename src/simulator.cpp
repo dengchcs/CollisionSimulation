@@ -24,10 +24,12 @@ simulator::simulator(const sphere_proto_arr_t &protos, const char *config_path) 
 simulator::~simulator() { free_memory(); }
 
 void simulator::init_memory() {
+    // 使用cuda的unified memory
+
     const auto nbytes_1u = sim_params_.num_spheres * sizeof(size_t);
     cudaMallocManaged(&hashes_, nbytes_1u);
     cudaMallocManaged(&indices_, nbytes_1u);
-    cudaMallocManaged(&cell_start_, (1 << 24) * sizeof(size_t));
+    cudaMallocManaged(&cell_start_, (1 << 24) * sizeof(size_t));  // 1<<24: 最大hash值
     cudaMallocManaged(&cell_end_, (1 << 24) * sizeof(size_t));
 
     cudaMallocManaged(&spheres_, sim_params_.num_spheres * sizeof(sphere));
@@ -42,6 +44,7 @@ void simulator::free_memory() {
 }
 
 void simulator::set_initial_state() {
+    // 为了简单起见, 初始状态每个球体占据一个cell. 这样可能出现球体能塞在空间中但却报错的情况
     const float cell_len = sim_params_.cell_len;
     const int num_per_axis = std::floor(2.0F / cell_len);
     const int cell_num = num_per_axis * num_per_axis * num_per_axis;
@@ -56,6 +59,8 @@ void simulator::set_initial_state() {
         std::uniform_real_distribution<float> dist(-max_abs, max_abs);
         return dist(re);
     };
+
+    // 为每个球按照比例随机分配一个类型
     std::vector<int> proto_types;
     proto_types.reserve(sim_params_.num_spheres);
     for (int i = 0; i < sphere_proto_num; i++) {
@@ -71,9 +76,9 @@ void simulator::set_initial_state() {
         const int index_x = i % nx;
         const int index_z = (i - index_x) / nx % nz;
         const int index_y = (i - index_x - nx * index_z) / (nx * nz);
-        spheres_[i].pos = {-1.F + cell_len / 2.F + cell_len * index_x,
-                           1.F - (cell_len / 2.F + cell_len * index_y),
-                           -1.F + cell_len / 2.F + cell_len * index_z};
+        spheres_[i].pos = {-1.F + cell_len / 2.F + cell_len * (float)index_x,
+                           1.F - (cell_len / 2.F + cell_len * (float)index_y),
+                           -1.F + cell_len / 2.F + cell_len * (float)index_z};
         added_pos.insert(spheres_[i].pos);
         spheres_[i].veloc = {
             random_float(0.005F * cell_len),
@@ -95,6 +100,7 @@ void simulator::init_sim_params(const char *config_path) {
     for (int i = 0; i < sphere_proto_num; i++) {
         const auto proto = sphere_protos_[i];
         sim_params_.num_spheres += proto.num;
+        // 原型数量为0的话不能参与最大半径的计算
         if (proto.num > 0) {
             sim_params_.max_radius = std::max(sim_params_.max_radius, proto.radius);
         }

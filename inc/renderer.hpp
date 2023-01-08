@@ -3,20 +3,23 @@
 
 #include "GLFW/glfw3.h"
 #include "camera.hpp"
-#include "glad/glad.h"
+#include "glad/glad.h"  // GLUint
 #include "simulator.hpp"
 #include "sphere.hpp"
 
 class renderer {
     struct config {
-        int width;
-        int height;
-        int fps;
+        int width = 800;
+        int height = 800;
+        int fps = 30;
+        int sphere_frag = 64;
+        float move_diff = 0.005F;
+        float rot_diff = 1.0F;
         static auto parse(const char *file) -> config;
     };
     config config_;
 
-    camera camera_{};
+    camera camera_;
 
     GLFWwindow *window_ = nullptr;
 

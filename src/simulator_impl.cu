@@ -14,6 +14,9 @@ __constant__ sim_params params;
 
 #define THREAD_INDEX ((blockIdx.x * blockDim.x) + threadIdx.x)
 
+/**
+ * @brief 检查cuda执行结果, 出错时报错并退出
+ */
 void check(cudaError_t error, const char *name) {
     if (error != cudaSuccess) {
         std::cerr << name << " " << cudaGetErrorString(error) << '\n';
@@ -22,6 +25,13 @@ void check(cudaError_t error, const char *name) {
     }
 }
 
+void setup_params(sim_params *params_in) {
+    check(cudaMemcpyToSymbol(params, params_in, sizeof(sim_params)), "setup_params()");
+}
+
+/**
+ * @brief 将世界坐标转换成网格坐标, 世界(-1,-1,-1) -> 网格(0, 0, 0)
+ */
 __device__ auto calc_cell_pos(gvec3_t pos) -> gvec3i_t {
     return {
         std::floor((pos.x + 1.F) / params.cell_len),
@@ -30,38 +40,45 @@ __device__ auto calc_cell_pos(gvec3_t pos) -> gvec3i_t {
     };
 }
 
-void setup_params(sim_params *params_in) {
-    check(cudaMemcpyToSymbol(params, params_in, sizeof(sim_params)), "setup_params()");
-}
-
+/**
+ * @brief 计算网格哈希: 将所有bits拼接起来
+ * @note 目前的实现每条边的网格数不超过1<<8=256个
+ */
 __device__ auto hash_func(gvec3i_t pos) -> size_t { return (pos.x << 16) | (pos.y << 8) | (pos.z); }
 
+/**
+ * @brief 计算所有球体所在网格的哈希值
+ */
 __global__ void calc_cell_hash(size_t *hashes, size_t *indices, const sphere *spheres) {
     const auto index = THREAD_INDEX;
     if (index >= params.num_spheres) {
         return;
     }
-    const gvec3_t current_pos = spheres[index].pos;
-    const auto cell_pos = calc_cell_pos(current_pos);
-    const auto hash = hash_func(cell_pos);  // TODO:
+    const gvec3_t sphere_pos = spheres[index].pos;
+    const auto cell_pos = calc_cell_pos(sphere_pos);
+    const auto hash = hash_func(cell_pos);
     hashes[index] = hash;
     indices[index] = index;
 }
 
-__global__ void fill_cells(size_t *cell_start, size_t *cell_end, const size_t *hashes) {
-    const size_t index = THREAD_INDEX;
-    if (index >= params.num_spheres) {
+/**
+ * @brief 记录每个hash对应网格包含球体在indices中的起始&终止位置
+ */
+__global__ void fill_cells(size_t *cell_start, size_t *cell_end, const size_t *hashes_sorted) {
+    // 此处的idx是在排序后的indices数组中的index, 对应的球体spheres[indices[idx]]
+    const size_t indices_idx = THREAD_INDEX;
+    if (indices_idx >= params.num_spheres) {
         return;
     }
-    const size_t hash = hashes[index];
-    if (index == 0) {
-        cell_start[index] = index;
-    } else if (hash != hashes[index - 1]) {
-        cell_start[hash] = index;
-        cell_end[hashes[index - 1]] = index;
+    const size_t hash = hashes_sorted[indices_idx];
+    if (indices_idx == 0) {
+        cell_start[hash] = indices_idx;
+    } else if (hash != hashes_sorted[indices_idx - 1]) {
+        cell_start[hash] = indices_idx;
+        cell_end[hashes_sorted[indices_idx - 1]] = indices_idx;
     }
-    if (index == params.num_spheres - 1) {
-        cell_end[hash] = index + 1;
+    if (indices_idx == params.num_spheres - 1) {
+        cell_end[hash] = indices_idx + 1;
     }
 }
 
@@ -84,7 +101,7 @@ __device__ auto collide_two(sphere sph1, sphere sph2) -> gvec3_t {
         return force;
     }
 
-    // 按照文档, normalize作用在零向量上的结果是未定义的
+    // 按照文档, normalize()作用在零向量上的结果是未定义的
     // 考虑到计算误差, 这种情况是有可能出现的, 所以在上面规避了单位化零向量
     gvec3_t normal = glm::normalize(rel_pos);
     gvec3_t rel_veloc = sph2.veloc - sph1.veloc;
@@ -99,13 +116,13 @@ __device__ auto collide_two(sphere sph1, sphere sph2) -> gvec3_t {
 /**
  * @brief 计算每个球的受力, 更新其加速度
  */
-__global__ void collide_all(sphere *spheres, const size_t *indices, const size_t *cell_start,
+__global__ void collide_all(sphere *spheres, const size_t *indices_sorted, const size_t *cell_start,
                             const size_t *cell_end) {
     const size_t thread_idx = THREAD_INDEX;
     if (thread_idx >= params.num_spheres) {
         return;
     }
-    const size_t sphere_idx = indices[thread_idx];
+    const size_t sphere_idx = indices_sorted[thread_idx];
     const auto target = spheres[sphere_idx];
     gvec3_t force{0.F};
 
@@ -114,15 +131,19 @@ __global__ void collide_all(sphere *spheres, const size_t *indices, const size_t
         for (int y = -1; y <= 1; y++) {
             for (int z = -1; z <= 1; z++) {
                 const auto neighbor = cell_pos + gvec3i_t{x, y, z};
+                if (neighbor.x < 0 || neighbor.y < 0 || neighbor.z < 0) {
+                    continue;
+                }
                 const size_t hash_ngh = hash_func(neighbor);
                 const size_t idx_start = cell_start[hash_ngh];
-                if (idx_start != 0xFFFFFFFFFFFFFFFF) {
-                    const size_t idx_end = cell_end[hash_ngh];
-                    for (size_t i = idx_start; i < idx_end; i++) {
-                        const auto idx = indices[i];
-                        if (idx != sphere_idx) {
-                            force += collide_two(target, spheres[idx]);
-                        }
+                if (idx_start == 0xFFFFFFFFFFFFFFFF) {
+                    continue;
+                }
+                const size_t idx_end = cell_end[hash_ngh];
+                for (size_t i = idx_start; i < idx_end; i++) {
+                    const auto idx = indices_sorted[i];
+                    if (idx != sphere_idx) {
+                        force += collide_two(target, spheres[idx]);
                     }
                 }
             }
@@ -134,6 +155,9 @@ __global__ void collide_all(sphere *spheres, const size_t *indices, const size_t
     spheres[sphere_idx].accel = accel;
 }
 
+/**
+ * @brief 更新球体在运动给定时间后的状态
+ */
 __global__ void integrate(float elapse, sphere *spheres) {
     const auto index = THREAD_INDEX;
     if (index >= params.num_spheres) {
@@ -150,6 +174,7 @@ __global__ void integrate(float elapse, sphere *spheres) {
     veloc += params.gravity * elapse;
     pos += veloc * elapse;
 
+    // 处理与边界的碰撞
     auto clamp_axis = [&](int axis) {
         bool bnd_touch = false;
         const float v_axis_old_abs = std::abs(veloc[axis]);
@@ -202,12 +227,16 @@ void update_kern(float elapse, sphere *spheres, size_t *hashes, size_t *indices,
     const int num_blocks = (num_spheres + num_threads - 1) / num_threads;
 
     // kenel在GPU上是同步执行的, 所以只需要在所有kernel launch后做一次sync()
+
     calc_cell_hash<<<num_blocks, num_threads>>>(hashes, indices, spheres);
+    // 将所有球体的下标按其所处cell的哈希值排序, 这样同一cell中的球体的下标在排序后的
+    // indices数组中是连续存储的, 方便碰撞检测时快速查询所有可能碰撞对象
     thrust::sort_by_key(thrust::device_ptr<size_t>(hashes),
                         thrust::device_ptr<size_t>(hashes + num_spheres),
                         thrust::device_ptr<size_t>(indices));
     check(cudaMemset(cell_start, 0XFF, (1 << 24) * sizeof(size_t)), "memset cell_start");
     fill_cells<<<num_blocks, num_threads>>>(cell_start, cell_end, hashes);
+
     collide_all<<<num_blocks, num_threads>>>(spheres, indices, cell_start, cell_end);
     integrate<<<num_blocks, num_threads>>>(elapse, spheres);
 
