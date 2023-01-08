@@ -4,10 +4,12 @@
 #include <cmath>
 #include <iostream>
 #include <random>
+#include <unordered_set>
 #include <vector>
 
 #include "cuda_runtime.h"
 #include "cuda_runtime_api.h"
+#include "glm/gtx/hash.hpp"  // for std::hash<gvec3_t>
 #include "simulator_impl.cuh"
 #include "sphere.hpp"
 #include "toml.hpp"
@@ -61,14 +63,18 @@ void simulator::set_initial_state() {
     }
     std::shuffle(proto_types.begin(), proto_types.end(), re);
 
-    for (int i = 0; i < sim_params_.num_spheres; i++) {
-        // i = per_axis^2 * index_y + per_axis * index_z + index_x
-        const int index_x = i % num_per_axis;
-        const int index_z = (i - index_x) / num_per_axis % num_per_axis;
-        const int index_y = i / (num_per_axis * num_per_axis);
+    const int num_spheres = sim_params_.num_spheres;
+    const int nx = std::floor(std::pow(num_spheres, 1.0F / 3.0F));
+    const int nz = nx;
+    std::unordered_set<gvec3_t> added_pos;
+    for (int i = 0; i < num_spheres; i++) {
+        const int index_x = i % nx;
+        const int index_z = (i - index_x) / nx % nz;
+        const int index_y = (i - index_x - nx * index_z) / (nx * nz);
         spheres_[i].pos = {-1.F + cell_len / 2.F + cell_len * index_x,
                            1.F - (cell_len / 2.F + cell_len * index_y),
                            -1.F + cell_len / 2.F + cell_len * index_z};
+        added_pos.insert(spheres_[i].pos);
         spheres_[i].veloc = {
             random_float(0.005F * cell_len),
             random_float(0.001F * cell_len),
@@ -77,6 +83,9 @@ void simulator::set_initial_state() {
         spheres_[i].accel = {0.F, 0.F, 0.F};
         spheres_[i].type = proto_types.back();
         proto_types.pop_back();
+    }
+    if (added_pos.size() != num_spheres) {
+        std::cerr << "sphere at the same pos!!!\n";
     }
 }
 

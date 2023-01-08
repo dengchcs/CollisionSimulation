@@ -74,11 +74,18 @@ __device__ auto collide_two(sphere sph1, sphere sph2) -> gvec3_t {
     const float radius_sum = radius1 + radius2;
     const auto rel_pos = sph2.pos - sph1.pos;
     const float dist = glm::length(rel_pos);
+    /*
+    if (dist == 0.0F) {
+        printf("error: zero-length vector!!!\n");
+    }
+    */
     gvec3_t force{0.F};
-    if (dist >= radius_sum) {
+    if (dist >= radius_sum || dist == 0.0F) {
         return force;
     }
 
+    // 按照文档, normalize作用在零向量上的结果是未定义的
+    // 考虑到计算误差, 这种情况是有可能出现的, 所以在上面规避了单位化零向量
     gvec3_t normal = glm::normalize(rel_pos);
     gvec3_t rel_veloc = sph2.veloc - sph1.veloc;
     gvec3_t tan_veloc = rel_veloc - glm::dot(rel_veloc, normal) * normal;
@@ -123,7 +130,8 @@ __global__ void collide_all(sphere *spheres, const size_t *indices, const size_t
     }
 
     const float mass = params.masses[target.type];
-    spheres[sphere_idx].accel = force / mass;
+    const auto accel = force / mass;
+    spheres[sphere_idx].accel = accel;
 }
 
 __global__ void integrate(float elapse, sphere *spheres) {
@@ -175,6 +183,16 @@ __global__ void integrate(float elapse, sphere *spheres) {
 
     spheres[index].pos = pos;
     spheres[index].veloc = veloc;
+
+    auto correct_nan = [](gvec3_t &vec3) {
+        if (isnan(vec3.x) || isnan(vec3.y) || isnan(vec3.z)) {
+            printf("bad vec3 during integrating: (%f, %f, %f)\n", vec3.x, vec3.y, vec3.z);
+            vec3 = {0.0F, 0.0F, 0.0F};
+        }
+    };
+    correct_nan(spheres[index].pos);
+    correct_nan(spheres[index].veloc);
+    correct_nan(spheres[index].accel);
 }
 
 void update_kern(float elapse, sphere *spheres, size_t *hashes, size_t *indices, size_t *cell_start,
@@ -183,6 +201,7 @@ void update_kern(float elapse, sphere *spheres, size_t *hashes, size_t *indices,
     const int num_threads = std::min(256, num_spheres);
     const int num_blocks = (num_spheres + num_threads - 1) / num_threads;
 
+    // kenel在GPU上是同步执行的, 所以只需要在所有kernel launch后做一次sync()
     calc_cell_hash<<<num_blocks, num_threads>>>(hashes, indices, spheres);
     thrust::sort_by_key(thrust::device_ptr<size_t>(hashes),
                         thrust::device_ptr<size_t>(hashes + num_spheres),
