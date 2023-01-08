@@ -15,6 +15,7 @@ target("collision")
     set_kind("binary")
     set_arch("x64")
     add_files("src/*.cu", "src/*.c", "src/*.cpp")
+    add_files("main.cpp")
     add_includedirs("inc")
     add_packages("glm", "glfw", "glad", "thrust")
     add_defines("THRUST_IGNORE_CUB_VERSION_CHECK")
@@ -34,6 +35,18 @@ target("collision")
     -- add_cugencodes("sm_35", "sm_37", "sm_50", "sm_52", "sm_60", "sm_61", "sm_70", "sm_75")
 
     -- -- generate PTX code from the highest SM architecture to guarantee forward-compatibility
+    add_cugencodes("compute_75")
+
+target("test")
+    set_kind("binary")
+    set_arch("x64")
+    add_files("src/*.cu", "src/*.c", "src/*.cpp")
+    add_files("test.cpp")
+    add_includedirs("inc")
+    add_packages("glm", "glfw", "glad", "thrust")
+    add_defines("THRUST_IGNORE_CUB_VERSION_CHECK")
+    add_cuflags("-rdc=true")
+    add_cugencodes("native")
     add_cugencodes("compute_75")
 
 --
